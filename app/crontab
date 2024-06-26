@@ -1,0 +1,2 @@
+0 * * * * /usr/bin/freshclam --quiet
+# <- This is a newline character

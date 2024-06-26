@@ -1,0 +1,94 @@
+version: '3.6'
+services:
+  host:
+    container_name: ${HOST_CONTAINER_NAME}
+    hostname: ${HOST_NAME}
+    image: ${HOST_CONTAINER_IMAGE}
+    restart: unless-stopped
+    build:
+      context: ./app
+      dockerfile: DockerfileHost
+    command: ${NODE_START_CMD}
+    volumes:
+      - ./${DOCUMENT_ROOT}:/usr/app/
+      - uploads:/usr/app/uploads/
+      - processing:/usr/app/processing/
+      - nodemodules:/usr/app/node_modules
+      - ./.docker/ImageMagickPolicy.xml:/etc/ImageMagick-6/policy.xml
+    networks:
+      - network
+    ports:
+      - "127.0.0.1:${HOST_PORT}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      HOST_NAME: ${HOST_NAME}
+      NODE_CLUSTERS: ${NODE_CLUSTERS}
+      HOST_CONTAINER_NAME: ${HOST_CONTAINER_NAME}
+      CRON_TIMEOUT: ${CRON_TIMEOUT}
+      NETWORK_PRIMARY_ENCRYPTION_KEY: ${NETWORK_PRIMARY_ENCRYPTION_KEY}
+      NETWORK_MINOR_ENCRYPTION_KEY: ${NETWORK_MINOR_ENCRYPTION_KEY}
+      NETWORK_SUPER_USER_PASSPHRASE: ${NETWORK_SUPER_USER_PASSPHRASE}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DEFAULT_WAREHOUSE_URL: ${DEFAULT_WAREHOUSE_URL}
+  mongodb:
+    container_name: ${DB_CONTAINER_NAME}
+    image: ${DB_CONTAINER_IMAGE}
+    restart: unless-stopped
+    build:
+      context: ./app
+      dockerfile: DockerfileMongo
+    command: [--auth]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MONGO_INITDB_DATABASE: ${DB_DATABASE}
+    networks:
+      - network
+    ports:
+      - "127.0.0.1:${DB_PORT}:27017"
+    volumes:
+      - mongodb_data:/data/db
+  dbadmin:
+    container_name: ${DBADMIN_CONTAINER_NAME}
+    image: mongo-express:1.0.2-20
+    restart: unless-stopped
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${DB_USER}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${DB_PASSWORD}
+      - ME_CONFIG_MONGODB_URL=mongodb://${DB_USER}:${DB_PASSWORD}@mongodb:27017/${DB_DATABASE}?authSource=admin
+      - ME_CONFIG_BASICAUTH_USERNAME=${DB_USER}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${DB_PASSWORD}
+    links:
+        - mongodb
+    networks:
+      - network
+    ports:
+      - "127.0.0.1:${DBDBADMIN_PORT}:8081"
+  clamav:
+    build:
+      context: ./app
+      dockerfile: DockerfileClamAV
+    container_name: clamav
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks:
+      - network
+volumes:
+  nodemodules:
+    name: ${HOST_CONTAINER_NAME}-node-modules
+  mongodb_data:
+    name: ${HOST_CONTAINER_NAME}-mongodb-data
+  uploads:
+    name: ${HOST_CONTAINER_NAME}-uploads
+  processing:
+    name: ${HOST_CONTAINER_NAME}-processing
+  clamav_data:
+    name: ${HOST_CONTAINER_NAME}-clamav-data
+networks:
+  network:
+    driver: bridge

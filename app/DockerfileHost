@@ -1,0 +1,11 @@
+FROM node:20.11.1-slim
+WORKDIR /usr/app
+COPY package.json .
+RUN apt-get update && apt-get install -y ffmpeg 
+RUN apt-get update && apt-get install -y imagemagick
+RUN apt-get install -y ghostscript
+#RUN npm install -g npm@latest
+RUN npm update -g
+RUN npm upgrade -g
+RUN npm install --quiet
+COPY . .

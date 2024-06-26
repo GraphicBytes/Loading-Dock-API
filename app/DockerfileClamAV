@@ -1,0 +1,28 @@
+FROM debian:buster-slim
+
+# Install ClamAV and ClamAV daemon
+RUN apt-get update && apt-get install -y clamav clamav-daemon
+
+# Update ClamAV database initially
+RUN freshclam
+
+# Configure freshclam to run as a daemon and update virus databases
+RUN echo "DatabaseMirror database.clamav.net" > /etc/clamav/freshclam.conf && \
+    echo "Checks 24" >> /etc/clamav/freshclam.conf && \
+    freshclam -d
+
+# Create directory and set permissions
+RUN mkdir -p /var/run/clamav && \
+    chown clamav:clamav /var/run/clamav && \
+    chmod 750 /var/run/clamav
+
+# Configure ClamAV to listen on TCP port
+RUN sed -i 's/StreamMaxLength 25M/StreamMaxLength 4000M/g' /etc/clamav/clamd.conf
+RUN sed -i 's/MaxScanSize 100M/MaxScanSize 4000M/g' /etc/clamav/clamd.conf
+RUN sed -i 's/MaxFileSize 25M/MaxFileSize 4000M/g' /etc/clamav/clamd.conf
+RUN sed -i 's/OnAccessMaxFileSize 5M/OnAccessMaxFileSize 4000M/g' /etc/clamav/clamd.conf
+RUN echo "TCPSocket 3310" >> /etc/clamav/clamd.conf
+RUN service clamav-daemon restart
+
+# Run ClamAV in the foreground
+CMD ["clamd", "-c", "/etc/clamav/clamd.conf", "--foreground=true"]
